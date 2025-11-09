@@ -1,0 +1,53 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: lima
+  ssh_timeout: 120
+
+platforms:
+  - name: instance-ubuntu
+    image: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img"
+    arch: aarch64
+    vm_type: vz
+    cpus: 2
+    memory: 2GiB
+    disk: 20GiB
+    python_interpreter: /usr/bin/python3
+
+  # - name: instance-debian
+  #   image: "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-generic-arm64.qcow2"
+  #   arch: aarch64
+  #   vm_type: vz
+  #   cpus: 2
+  #   memory: 2GiB
+  #   disk: 20GiB
+
+provisioner:
+  name: ansible
+  inventory:
+    links:
+      hosts: ../../inventory/hosts.yml
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks,timer
+      stdout_callback: yaml
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - side_effect
+    - verify
+    - cleanup
+    - destroy

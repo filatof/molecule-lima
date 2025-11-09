@@ -1,0 +1,160 @@
+---
+- name: Set instance variables
+  ansible.builtin.set_fact:
+    instance_name: "{{ instance.name }}"
+    lima_config_file: "{{ molecule_ephemeral_directory }}/{{ instance.name }}-config.yaml"
+
+- name: Create Lima configuration file
+  ansible.builtin.copy:
+    dest: "{{ lima_config_file }}"
+    content: |
+      # Lima configuration for Molecule testing - {{ instance.name }}
+      vmType: "{{ instance.vm_type | default('vz') }}"
+      
+      images:
+        - location: "{{ instance.image }}"
+          arch: "{{ instance.arch | default('aarch64') }}"
+      
+      cpus: {{ instance.cpus | default(2) }}
+      memory: "{{ instance.memory | default('2GiB') }}"
+      disk: "{{ instance.disk | default('20GiB') }}"
+      
+      networks:
+        - lima: shared
+      
+      mounts:
+        - location: "~"
+          writable: false
+        - location: "/tmp/lima"
+          writable: true
+      {% if instance.mounts is defined %}
+      {% for mount in instance.mounts %}
+        - location: "{{ mount.location }}"
+          writable: {{ mount.writable | default(false) | lower }}
+      {% endfor %}
+      {% endif %}
+      
+      provision:
+        - mode: system
+          script: |
+            #!/bin/bash
+            set -eux -o pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            
+            # Determine package manager
+            if command -v apt-get &> /dev/null; then
+              apt-get update
+              apt-get install -y python3 python3-pip python3-apt sudo curl git
+            elif command -v yum &> /dev/null; then
+              yum install -y python3 python3-pip sudo curl git
+            elif command -v dnf &> /dev/null; then
+              dnf install -y python3 python3-pip sudo curl git
+            fi
+            
+            # Create python symlink if needed
+            if [ ! -e /usr/bin/python ]; then
+              ln -s /usr/bin/python3 /usr/bin/python
+            fi
+            
+            {% if instance.provision_script is defined %}
+            {{ instance.provision_script }}
+            {% endif %}
+    mode: '0644'
+
+- name: Check if Lima instance exists
+  ansible.builtin.shell: |
+    limactl list 2>/dev/null | grep -q "^{{ instance_name }}" || echo "not_found"
+  register: instance_check
+  changed_when: false
+  failed_when: false
+
+- name: Get instance status if exists
+  ansible.builtin.shell: |
+    limactl list "{{ instance_name }}" --format '{{.Status}}'
+  register: instance_status
+  when: instance_check.stdout != "not_found"
+  changed_when: false
+  failed_when: false
+
+- name: Start existing Lima instance
+  ansible.builtin.command: limactl start "{{ instance_name }}"
+  when:
+    - instance_check.stdout != "not_found"
+    - instance_status.stdout != "Running"
+  changed_when: true
+
+- name: Create new Lima instance
+  ansible.builtin.command: |
+    limactl start --name="{{ instance_name }}" --tty=false "{{ lima_config_file }}"
+  when: instance_check.stdout == "not_found"
+  changed_when: true
+  register: create_result
+  async: 600
+  poll: 10
+
+- name: Wait for SSH to be ready
+  ansible.builtin.shell: |
+    timeout {{ ssh_timeout }} bash -c "
+      until limactl shell {{ instance_name }} echo 'ready' 2>/dev/null; do
+        sleep 2
+      done
+    "
+  changed_when: false
+  retries: 3
+  delay: 5
+
+- name: Get SSH connection info
+  ansible.builtin.shell: |
+    limactl list "{{ instance_name }}" --format '{{.SSHLocalPort}}'
+  register: ssh_port
+  changed_when: false
+
+- name: Get SSH identity file
+  ansible.builtin.shell: |
+    grep IdentityFile {{ lookup('env', 'HOME') }}/.lima/{{ instance_name }}/ssh.config | \
+    head -1 | \
+    awk '{print $2}' | \
+    tr -d '"'
+  register: ssh_identity
+  changed_when: false
+
+- name: Store instance connection info
+  ansible.builtin.set_fact:
+    lima_instances: "{{ lima_instances | default({}) | combine({instance_name: {'ssh_port': ssh_port.stdout, 'ssh_key': ssh_identity.stdout}}) }}"
+
+- name: Create inventory directory
+  ansible.builtin.file:
+    path: "{{ molecule_ephemeral_directory }}/inventory"
+    state: directory
+    mode: '0755'
+
+- name: Create instance inventory
+  ansible.builtin.copy:
+    dest: "{{ molecule_ephemeral_directory }}/inventory/{{ instance_name }}.yml"
+    content: |
+      ---
+      all:
+        hosts:
+          {{ instance_name }}:
+            ansible_host: 127.0.0.1
+            ansible_port: {{ ssh_port.stdout }}
+            ansible_user: {{ lookup('env', 'USER') }}
+            ansible_ssh_private_key_file: {{ ssh_identity.stdout }}
+            ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o IdentitiesOnly=yes'
+            ansible_python_interpreter: {{ instance.python_interpreter | default('/usr/bin/python3') }}
+    mode: '0644'
+
+- name: Test instance connectivity
+  ansible.builtin.command: |
+    limactl shell "{{ instance_name }}" python3 --version
+  register: connectivity_test
+  changed_when: false
+  retries: 3
+  delay: 5
+
+- name: Display instance info
+  ansible.builtin.debug:
+    msg:
+      - "Instance '{{ instance_name }}' is ready"
+      - "SSH: 127.0.0.1:{{ ssh_port.stdout }}"
+      - "Python: {{ connectivity_test.stdout }}"

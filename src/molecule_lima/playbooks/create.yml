@@ -1,0 +1,29 @@
+---
+- name: Create Lima instances
+  hosts: localhost
+  gather_facts: false
+  vars:
+    ssh_timeout: "{{ molecule_yml.driver.ssh_timeout | default(120) }}"
+
+  tasks:
+    - name: Validate Lima is installed
+      ansible.builtin.command: limactl --version
+      register: lima_version
+      changed_when: false
+      failed_when: lima_version.rc != 0
+
+    - name: Create Lima instances
+      include_tasks: create_instance.yml
+      loop: "{{ molecule_yml.platforms }}"
+      loop_control:
+        loop_var: instance
+
+- name: Validate instances
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Wait for instances to be ready
+      include_tasks: validate_instance.yml
+      loop: "{{ molecule_yml.platforms }}"
+      loop_control:
+        loop_var: instance
