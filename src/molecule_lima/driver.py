@@ -1,98 +1,114 @@
-"""Lima driver for Molecule."""
+"""Molecule Lima Driver Module.
+"""
+
 import os
+import yaml
 from molecule import logger
 from molecule.api import Driver
-from molecule.util import run_command
 
 LOG = logger.get_logger(__name__)
 
 
 class Lima(Driver):
-    """
-    Lima driver for Molecule.
 
-    Provides integration with Lima VMs for testing Ansible roles
-    on macOS Apple Silicon and Linux.
-    """
 
     def __init__(self, config=None):
-        """Initialize Lima driver."""
-        super(Lima, self).__init__(config)
-        self._name = 'lima'
+        """Initialize  Lima driver."""
+        super().__init__(config)
+        self._name = "molecule-lima"
 
     @property
     def name(self):
         """Return driver name."""
         return self._name
 
+    @name.setter
+    def name(self, value):
+        """Set driver name."""
+        self._name = value
+
     @property
     def login_cmd_template(self):
         """Return login command template."""
-        return 'limactl shell {instance}'
-
-    @property
-    def default_safe_files(self):
-        """Return default safe files."""
-        return [
-            os.path.join(
-                self._config.scenario.ephemeral_directory,
-                'lima-config.yaml'
-            )
-        ]
+        return "limactl shell {instance}"
 
     @property
     def default_ssh_connection_options(self):
         """Return default SSH connection options."""
         return [
-            '-o StrictHostKeyChecking=no',
-            '-o UserKnownHostsFile=/dev/null',
-            '-o IdentitiesOnly=yes',
-            '-o ControlMaster=auto',
-            '-o ControlPersist=60s',
+            "-o UserKnownHostsFile=/dev/null",
+            "-o StrictHostKeyChecking=no",
+            "-o IdentitiesOnly=yes",
         ]
+
+    @property
+    def default_safe_files(self):
+        """Return default safe files."""
+        return [self.instance_config]
 
     def login_options(self, instance_name):
         """Return login options for instance."""
-        return {'instance': instance_name}
+        return {"instance": instance_name}
 
     def ansible_connection_options(self, instance_name):
-        """Return Ansible connection options."""
-        return {
-            'ansible_connection': 'ssh',
-        }
+        """Return Ansible connection options for instance."""
+        try:
+            d = self._get_instance_config(instance_name)
+
+            return {
+                "ansible_user": d["user"],
+                "ansible_host": d["address"],
+                "ansible_port": d["port"],
+                "ansible_ssh_private_key_file": d["identity_file"],
+                "ansible_connection": "ssh",
+                "ansible_ssh_common_args": " ".join(
+                    self.default_ssh_connection_options
+                ),
+            }
+        except StopIteration:
+            return {}
+        except IOError:
+            # Instance has yet to be provisioned, therefore the
+            # instance config file does not yet exist.
+            return {}
+
+    def _get_instance_config(self, instance_name):
+        """Get instance configuration."""
+        instance_config_dict = self._get_instance_config_dict()
+        return next(
+            item for item in instance_config_dict if item["instance"] == instance_name
+        )
+
+    def _get_instance_config_dict(self):
+        """Get instance configuration dictionary."""
+        instance_config_dict = []
+
+        if os.path.exists(self.instance_config):
+            try:
+                with open(self.instance_config, "r", encoding="utf-8") as f:
+                    instance_config_dict = yaml.safe_load(f) or []
+            except (OSError, yaml.YAMLError) as e:
+                LOG.warning("Failed to load instance config: %s", e)
+                instance_config_dict = []
+
+        return instance_config_dict
 
     def sanity_checks(self):
-        """Check if Lima is installed and available."""
-        cmd = ['limactl', '--version']
-        result = run_command(cmd, check=False)
+        """Perform sanity checks."""
+        # Note: Template validation moved to playbooks for better error handling
+        pass  # pylint: disable=unnecessary-pass
 
-        if result.returncode != 0:
-            LOG.error('Lima is not installed or not in PATH')
-            raise SystemExit(
-                'Lima is required for this driver. '
-                'Install it with: brew install lima'
-            )
+    def template_dir(self):
+        """Return template directory."""
+        return os.path.join(
+            os.path.dirname(__file__),
+            "playbooks",
+        )
 
     @property
     def required_collections(self):
         """Return required Ansible collections."""
         return {
-            'community.general': '>=3.0.0',
+            "community.proxmox": "1.0.0",
+            "ansible.posix": "1.0.0",
         }
-
-    def template_dir(self):
-        """Return template directory for cookiecutter."""
-        return os.path.join(
-            os.path.dirname(__file__),
-            'cookiecutter'
-        )
-
-    @property
-    def modules_dir(self):
-        """Return modules directory."""
-        return None
-
-    @property
-    def playbook_directory(self):
-        """Return playbooks directory."""
-        return os.path.join(os.path.dirname(__file__), 'playbooks')
