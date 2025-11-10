@@ -1,7 +1,7 @@
 ---
 - name: Check instance is running
   ansible.builtin.command: |
-    limactl list "{{ instance.name }}" --format '{{.Status}}'
+    limactl list "{{ instance.name }}" --format '{{"{{.Status}}"}}'
   register: status_check
   changed_when: false
   failed_when: status_check.stdout != "Running"

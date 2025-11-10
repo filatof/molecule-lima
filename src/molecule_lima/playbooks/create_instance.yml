@@ -104,8 +104,7 @@
   delay: 5
 
 - name: Get SSH connection info
-  ansible.builtin.shell: |
-    limactl list "{{ instance_name }}" --format '{{.SSHLocalPort}}'
+  ansible.builtin.shell: limactl list "{{ instance_name }}" --format '{{"{{.SSHLocalPort}}"}}'
   register: ssh_port
   changed_when: false
 
