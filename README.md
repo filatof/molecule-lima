@@ -56,7 +56,7 @@ pip install -e .[dev]
 
 ### Initialize a New Scenario
 ```bash
-molecule init scenario --driver-name lima
+molecule init scenario --driver-name molecule-lima
 ```
 
 ### Basic Configuration
