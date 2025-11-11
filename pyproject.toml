@@ -71,7 +71,7 @@ Issues = "https://github.com/filatof/molecule-lima/issues"
 Changelog = "https://github.com/filatof/molecule-lima/blob/main/CHANGELOG.md"
 
 [project.entry-points."molecule.driver"]
-lima = "molecule_lima.driver:Lima"
+molecule-lima = "molecule_lima.driver:Lima"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
