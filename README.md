@@ -245,28 +245,3 @@ platforms:
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- [Molecule](https://ansible.readthedocs.io/projects/molecule/) - Ansible testing framework
-- [Lima](https://lima-vm.io/) - Linux virtual machines on macOS
-- [Ansible](https://www.ansible.com/) - Automation platform
-
-## Links
-
-- **Documentation**: [GitHub README](https://github.com/filatof/molecule-lima#readme)
-- **Issues**: [GitHub Issues](https://github.com/filatof/molecule-lima/issues)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
-- **PyPI**: [molecule-lima](https://pypi.org/project/molecule-lima/)
-
-## Support
-
-If you encounter any issues or have questions:
-
-1. Check the [Troubleshooting](#troubleshooting) section
-2. Search [existing issues](https://github.com/filatof/molecule-lima/issues)
-3. Open a [new issue](https://github.com/filatof/molecule-lima/issues/new) with detailed information
-
----
-
-Made with ❤️ for the Ansible and DevOps community
