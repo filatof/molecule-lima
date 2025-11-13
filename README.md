@@ -56,7 +56,7 @@ pip install -e .[dev]
 
 ### Initialize a New Scenario
 ```bash
-molecule init scenario --driver-name molecule-lima
+molecule init scenario <scenario-name>
 ```
 
 ### Basic Configuration
@@ -64,7 +64,7 @@ molecule init scenario --driver-name molecule-lima
 Create or update `molecule/default/molecule.yml`:
 ```yaml
 driver:
-  name: lima
+  name: molecule-lima
   ssh_timeout: 180
 
 platforms:
@@ -78,6 +78,11 @@ platforms:
 
 provisioner:
   name: ansible
+  config_options:
+    defaults:
+      callbacks_enabled: profile_tasks,timer
+      stdout_callback: yaml
+      host_key_checking: false
 
 verifier:
   name: ansible
@@ -90,9 +95,6 @@ molecule create
 
 # Run converge
 molecule converge
-
-# Test idempotence
-molecule idempotence
 
 # Run verification
 molecule verify
@@ -126,7 +128,7 @@ molecule test
 ### Advanced Configuration Example
 ```yaml
 driver:
-  name: lima
+  name: molecule-lima
   ssh_timeout: 240
 
 platforms:
@@ -214,7 +216,7 @@ platforms:
 Increase `ssh_timeout` in driver configuration:
 ```yaml
 driver:
-  name: lima
+  name: molecule-lima
   ssh_timeout: 300  # 5 minutes
 ```
 
