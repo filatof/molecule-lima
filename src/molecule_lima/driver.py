@@ -1,6 +1,4 @@
-"""Molecule Lima Driver Module.
-"""
-
+"""Molecule Lima Driver Module. """
 import os
 import yaml
 from molecule import logger
@@ -98,17 +96,3 @@ class Lima(Driver):
         # Note: Template validation moved to playbooks for better error handling
         pass  # pylint: disable=unnecessary-pass
 
-    def template_dir(self):
-        """Return template directory."""
-        return os.path.join(
-            os.path.dirname(__file__),
-            "playbooks",
-        )
-
-    @property
-    def required_collections(self):
-        """Return required Ansible collections."""
-        return {
-            "community.proxmox": "1.0.0",
-            "ansible.posix": "1.0.0",
-        }
