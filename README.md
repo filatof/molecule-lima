@@ -99,6 +99,9 @@ molecule converge
 # Run verification
 molecule verify
 
+# Run idempotence
+molecule idempotence
+
 # Full test cycle
 molecule test
 ```
