@@ -81,7 +81,6 @@ provisioner:
   config_options:
     defaults:
       callbacks_enabled: profile_tasks,timer
-      stdout_callback: yaml
       host_key_checking: false
 
 verifier:
